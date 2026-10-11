@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123b32">
+  <meta name="description" content="Businessy AI Assistant helps small businesses understand sales, profit, and inventory.">
+  <title>Businessy — AI Assistant</title>
+  <link rel="icon" href="/assets/businessy-logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/assets/businessy-logo.svg" alt="" class="brand-logo">
+        <div><div class="brand-name">businessy<span>.</span></div><div class="brand-subtitle">AI BUSINESS ASSISTANT</div></div>
+      </div>
+      <button class="new-chat" id="new-chat" type="button"><span class="plus">＋</span> New conversation</button>
+      <div class="side-label">YOUR BUSINESS TOOLS</div>
+      <button class="tool-link active" data-prompt="How much profit did I make this week?"><span class="tool-icon green">↗</span><span><strong>Profit overview</strong><small>Revenue, costs & margin</small></span></button>
+      <button class="tool-link" data-prompt="Which products need restocking?"><span class="tool-icon yellow">▦</span><span><strong>Inventory check</strong><small>Low-stock products</small></span></button>
+      <button class="tool-link" data-prompt="Summarize my sales this week."><span class="tool-icon blue">▤</span><span><strong>Sales summary</strong><small>Orders & best sellers</small></span></button>
+      <div class="sidebar-bottom">
+        <div class="demo-note"><span class="status-dot"></span><div><strong>Demo workspace</strong><small>Using fictional sample data</small></div></div>
+        <div class="sidebar-footer">Made for small businesses<br><span>Algeria · DZD</span></div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="mobile-brand"><img src="/assets/businessy-logo.svg" alt=""><strong>businessy<span>.</span></strong></div>
+        <div class="topbar-title"><span class="live-dot"></span> Businessy Assistant <span class="pill">BETA</span></div>
+        <div class="topbar-right"><span class="sample-badge">Sample data</span><div class="avatar">B</div></div>
+      </header>
+      <section class="conversation" id="conversation" aria-live="polite">
+        <div class="welcome" id="welcome">
+          <div class="welcome-mark"><img src="/assets/businessy-logo.svg" alt="Businessy logo"></div>
+          <div class="eyebrow">YOUR BUSINESS, MADE CLEARER</div>
+          <h1>Good business starts<br>with <em>clear answers.</em></h1>
+          <p>Ask about your sales, understand your profit, or find out what needs restocking. I'll work from your recorded business data.</p>
+          <div class="suggestion-grid">
+            <button class="suggestion" data-prompt="How much profit did I make this week?"><span class="suggestion-symbol green">↗</span><span><strong>Understand my profit</strong><small>See revenue, costs and estimated profit</small></span><span class="arrow">↗</span></button>
+            <button class="suggestion" data-prompt="Which products need restocking?"><span class="suggestion-symbol yellow">▦</span><span><strong>Check my inventory</strong><small>Find products running low</small></span><span class="arrow">↗</span></button>
+            <button class="suggestion" data-prompt="Summarize my sales this week."><span class="suggestion-symbol blue">▤</span><span><strong>Review my sales</strong><small>Explore orders and top products</small></span><span class="arrow">↗</span></button>
+          </div>
+          <div class="demo-disclaimer"><span>ⓘ</span> This prototype uses fictional sample records, not live shop data.</div>
+        </div>
+        <div id="messages" class="messages"></div>
+      </section>
+      <footer class="composer-wrap">
+        <form id="chat-form" class="composer">
+          <textarea id="message-input" rows="1" placeholder="Ask Businessy about your business..." aria-label="Message Businessy"></textarea>
+          <button id="send-button" type="submit" aria-label="Send message"><span>↑</span></button>
+        </form>
+        <div class="composer-foot"><span><span class="sparkle">✳</span> Businessy can make mistakes. Verify important numbers.</span><span>Powered by Gemini</span></div>
+      </footer>
+    </main>
+  </div>
+  <script>
+    const form = document.getElementById("chat-form");
+    const input = document.getElementById("message-input");
+    const messagesEl = document.getElementById("messages");
+    const welcome = document.getElementById("welcome");
+    const sendButton = document.getElementById("send-button");
+    let history = [];
+    let busy = false;
+
+    function appendInlineMarkdown(parent, text) {
+      const pattern = /(\*\*.+?\*\*|\*.+?\*|`.+?`)/g;
+      let start = 0;
+      for (const match of text.matchAll(pattern)) {
+        parent.append(document.createTextNode(text.slice(start, match.index)));
+        const token = match[0];
+        const element = token.startsWith("**") ? document.createElement("strong")
+          : token.startsWith("*") ? document.createElement("em")
+          : document.createElement("code");
+        element.textContent = token.startsWith("**") ? token.slice(2, -2) : token.slice(1, -1);
+        parent.append(element);
+        start = match.index + token.length;
+      }
+      parent.append(document.createTextNode(text.slice(start)));
+    }
+
+    function renderAssistantMarkdown(container, text) {
+      const lines = text.replace(/\r\n?/g, "\n").split("\n");
+      let index = 0;
+      while (index < lines.length) {
+        const line = lines[index].trim();
+        if (!line) {
+          index++;
+          continue;
+        }
+        if (/^(---+|___+|\*\*\*+)$/.test(line)) {
+          container.append(document.createElement("hr"));
+          index++;
+          continue;
+        }
+        const heading = line.match(/^#{1,3}\s+(.+)$/);
+        if (heading) {
+          const element = document.createElement(heading[0].startsWith("# ") ? "h3" : "h4");
+          appendInlineMarkdown(element, heading[1]);
+          container.append(element);
+          index++;
+          continue;
+        }
+        if (line.startsWith(">")) {
+          const quote = document.createElement("blockquote");
+          while (index < lines.length && lines[index].trim().startsWith(">")) {
+            const paragraph = document.createElement("p");
+            appendInlineMarkdown(paragraph, lines[index].trim().replace(/^>\s?/, ""));
+            quote.append(paragraph);
+            index++;
+          }
+          container.append(quote);
+          continue;
+        }
+        const listMatch = line.match(/^(\d+\.|[-*+])\s+(.+)$/);
+        if (listMatch) {
+          const ordered = /^\d+\.$/.test(listMatch[1]);
+          const list = document.createElement(ordered ? "ol" : "ul");
+          while (index < lines.length) {
+            const itemMatch = lines[index].trim().match(/^(\d+\.|[-*+])\s+(.+)$/);
+            if (!itemMatch || /^\d+\.$/.test(itemMatch[1]) !== ordered) break;
+            const item = document.createElement("li");
+            appendInlineMarkdown(item, itemMatch[2]);
+            list.append(item);
+            index++;
+          }
+          container.append(list);
+          continue;
+        }
+        const paragraph = document.createElement("p");
+        appendInlineMarkdown(paragraph, line);
+        index++;
+        while (index < lines.length && lines[index].trim() &&
+          !/^(#{1,3}\s|>|---+$|___+$|\*\*\*+$|\d+\.\s+|[-*+]\s+)/.test(lines[index].trim())) {
+          paragraph.append(document.createTextNode(" "));
+          appendInlineMarkdown(paragraph, lines[index].trim());
+          index++;
+        }
+        container.append(paragraph);
+      }
+    }
+
+    function addMessage(role, text, extraClass = "") {
+      const wrap = document.createElement("div");
+      wrap.className = `message-row ${role} ${extraClass}`;
+      const avatar = document.createElement("div");
+      avatar.className = role === "assistant" ? "message-avatar bot-avatar" : "message-avatar user-avatar";
+      avatar.textContent = role === "assistant" ? "B" : "You";
+      const bubble = document.createElement("div");
+      bubble.className = "message-bubble";
+      const label = document.createElement("div");
+      label.className = "message-label";
+      label.textContent = role === "assistant" ? "BUSINESSY ASSISTANT" : "YOU";
+      const body = document.createElement("div");
+      body.className = "message-text";
+      if (role === "assistant" && extraClass !== "typing-row") {
+        renderAssistantMarkdown(body, text);
+      } else {
+        body.textContent = text;
+      }
+      bubble.append(label, body);
+      wrap.append(avatar, bubble);
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollIntoView({ behavior: "smooth", block: "end" });
+      return body;
+    }
+
+    function showTyping() {
+      const body = addMessage("assistant", "Thinking through your records…", "typing-row");
+      return body.closest(".message-row");
+    }
+
+    async function sendMessage(text) {
+      const message = text.trim();
+      if (!message || busy) return;
+      busy = true;
+      welcome.classList.add("hidden");
+      sendButton.disabled = true;
+      input.disabled = true;
+      addMessage("user", message);
+      const typing = showTyping();
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, history })
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || "Something went wrong.");
+        typing.remove();
+        addMessage("assistant", payload.reply);
+        history.push({ role: "user", content: message }, { role: "assistant", content: payload.reply });
+        history = history.slice(-20);
+      } catch (error) {
+        typing.remove();
+        addMessage("assistant", `I couldn't complete that request. ${error.message} If this is the first run, check that your Gemini API key is set in backend/.env and the server has been restarted.`);
+      } finally {
+        busy = false;
+        sendButton.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const value = input.value;
+      input.value = "";
+      input.style.height = "auto";
+      sendMessage(value);
+    });
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 140) + "px";
+    });
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    document.querySelectorAll("[data-prompt]").forEach(button => {
+      button.addEventListener("click", () => sendMessage(button.dataset.prompt));
+    });
+    document.getElementById("new-chat").addEventListener("click", () => {
+      history = [];
+      messagesEl.replaceChildren();
+      welcome.classList.remove("hidden");
+      input.value = "";
+      input.focus();
+    });
+  </script>
+</body>
+</html>

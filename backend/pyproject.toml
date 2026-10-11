@@ -1,0 +1,16 @@
+[project]
+name = "businessy-ai-assistant"
+version = "0.1.0"
+description = "Businessy small-business AI assistant with profit, inventory, and sales tools"
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph>=1.0.0",
+  "langchain>=1.0.0",
+  "langchain-google-genai>=4.0.0",
+  "python-dotenv>=1.0.0",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+]
+
+[tool.setuptools]
+py-modules = ["agent", "api"]

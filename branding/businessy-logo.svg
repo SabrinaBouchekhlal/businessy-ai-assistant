@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Businessy logo">
+  <rect width="128" height="128" rx="30" fill="#123B32"/>
+  <path d="M31 31h39c18 0 28 9 28 23 0 9-5 16-13 19 11 3 17 11 17 22 0 16-12 25-31 25H31V31zm22 18v17h15c6 0 9-3 9-9s-3-8-9-8H53zm0 34v19h17c7 0 10-3 10-10 0-6-4-9-11-9H53z" fill="#F7F3E8" transform="translate(0 -10)"/>
+  <circle cx="91" cy="29" r="8" fill="#D8F36A"/>
+</svg>
